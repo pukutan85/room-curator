@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="p:domain_verify" content="67411ec4f46a2e98bfd43f6c05656b12"/>
+    <title>商品詳細 - RoomCurator</title>
+    <meta name="description" content="RoomCuratorが厳選したおすすめのインテリア・ライフスタイルアイテムをご紹介します。">
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+    <!-- PR Disclosure Banner -->
+    <div class="pr-banner">
+        ※本ページはプロモーション（アフィリエイト広告）を含みます (#PR)
+    </div>
+
+    <!-- Background glow dots -->
+    <div class="bg-glow-container">
+        <div class="bg-glow-1"></div>
+        <div class="bg-glow-2"></div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="container">
+            <a href="../index.html" class="logo">
+                Room<span>Curator</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../privacy.html">Privacy</a></li>
+                <li><a href="../terms.html">Terms</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="container">
+        <div class="detail-layout">
+            
+            <!-- Item Card (Rendered via JS) -->
+            <div id="product-card" class="item-card" style="display: none;">
+                <div class="item-image-container">
+                    <img id="product-img" src="" alt="商品画像" class="item-image">
+                </div>
+                <h1 id="product-title" class="item-title"></h1>
+                <p id="product-desc" class="item-description"></p>
+                <a id="product-cta" href="#" class="btn btn-primary btn-cta-red">
+                    楽天ROOMで詳細を見る
+                </a>
+            </div>
+
+            <!-- Fallback & Error UI (Rendered via JS on error/expired) -->
+            <div id="fallback-card" class="item-card" style="display: none;">
+                <div class="fallback-container">
+                    <div class="fallback-title">⚠️ こちらの商品の紹介は終了しました</div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                        この商品は掲載期間が終了したか、売り切れとなっています。<br>
+                        公式ROOM内でお探しいただく場合は、以下のキーワードをコピーして検索窓に貼り付けてください。
+                    </p>
+                    <div class="copy-box">
+                        <input id="copy-target-word" type="text" readonly class="copy-input">
+                        <button id="btn-copy-word" class="btn-copy">📋コピーする</button>
+                    </div>
+                </div>
+                <a id="fallback-cta" href="https://room.rakuten.co.jp/pukutan/items" class="btn btn-primary">
+                    RoomCurator 公式ROOMへ進む
+                </a>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loading-spinner" style="text-align: center; padding: 4rem 0;">
+                <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-radius: 50%; border-top-color: var(--color-primary); animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">商品情報を読み込み中...</p>
+            </div>
+
+            <!-- Recommend Grid (Dynamic) -->
+            <div id="recommend-area" class="recommend-section" style="display: none;">
+                <h3 class="recommend-title">こちらもおすすめのアイテム</h3>
+                <div id="recommend-grid-container" class="recommend-grid">
+                    <!-- Dynamic cards inject here -->
+                </div>
+                <div style="text-align: center;">
+                    <a href="../index.html" class="btn-sub-link">
+                        すべてのキュレーションアイテムを見る
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer Area -->
+    <footer>
+        <div class="container">
+            <div class="footer-nav">
+                <a href="../index.html">Home</a>
+                <a href="../privacy.html">プライバシーポリシー</a>
+                <a href="../terms.html">免責事項・利用規約</a>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2026 RoomCurator. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Spin animation definition -->
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
+    <!-- JS Logic -->
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const itemId = urlParams.get("id");
+            const kwParam = urlParams.get("kw") || "";
+            const utmSource = urlParams.get("utm_source") || "";
+            const utmMedium = urlParams.get("utm_medium") || "";
+            const utmCampaign = urlParams.get("utm_campaign") || "";
+            const utmContent = urlParams.get("utm_content") || "";
+
+            const loading = document.getElementById("loading-spinner");
+            const productCard = document.getElementById("product-card");
+            const fallbackCard = document.getElementById("fallback-card");
+            const recommendArea = document.getElementById("recommend-area");
+
+            // 楽天ROOMのプロフィールURL (デフォルトのフォールバック先)
+            const DEFAULT_PROFILE_URL = "https://room.rakuten.co.jp/pukutan/items";
+
+            // UTMパラメータをターゲットURLにマージする関数
+            function mergeUtmParameters(targetUrl) {
+                if (!targetUrl) return DEFAULT_PROFILE_URL;
+                try {
+                    const urlObj = new URL(targetUrl);
+                    if (utmSource) urlObj.searchParams.set("utm_source", utmSource);
+                    if (utmMedium) urlObj.searchParams.set("utm_medium", utmMedium);
+                    if (utmCampaign) urlObj.searchParams.set("utm_campaign", utmCampaign);
+                    if (utmContent) urlObj.searchParams.set("utm_content", utmContent);
+                    return urlObj.toString();
+                } catch (e) {
+                    // 通常のURLパーサーでエラーが出る相対/絶対パスの場合
+                    let separator = targetUrl.includes('?') ? '&' : '?';
+                    let params = [];
+                    if (utmSource) params.push(`utm_source=${encodeURIComponent(utmSource)}`);
+                    if (utmMedium) params.push(`utm_medium=${encodeURIComponent(utmMedium)}`);
+                    if (utmCampaign) params.push(`utm_campaign=${encodeURIComponent(utmCampaign)}`);
+                    if (utmContent) params.push(`utm_content=${encodeURIComponent(utmContent)}`);
+                    return params.length > 0 ? (targetUrl + separator + params.join('&')) : targetUrl;
+                }
+            }
+
+            // 1. JSONファイルをフェッチ
+            let mapData = null;
+            try {
+                // キャッシュバスター（タイムスタンプ）を付与
+                const res = await fetch(`../redirect_map.json?t=${Date.now()}`);
+                if (res.ok) {
+                    mapData = await res.json();
+                }
+            } catch (e) {
+                console.error("マッピングデータの取得に失敗しました:", e);
+            }
+
+            loading.style.display = "none";
+
+            // 2. マップデータから商品を検索
+            let targetItem = null;
+            if (mapData && mapData.items && itemId) {
+                targetItem = mapData.items[itemId];
+            }
+
+            if (targetItem) {
+                // --- 商品が見つかった場合（正常表示） ---
+                document.getElementById("product-img").src = targetItem.image_url || "../placeholder.png";
+                document.getElementById("product-title").innerText = targetItem.title || "おすすめ商品";
+                document.getElementById("product-desc").innerText = targetItem.description || "";
+                
+                // UTMマージ済みアフィリエイトURLの生成
+                const finalCtaUrl = mergeUtmParameters(targetItem.room_url);
+                document.getElementById("product-cta").href = finalCtaUrl;
+                
+                productCard.style.display = "block";
+                document.title = `${targetItem.title} - RoomCurator`;
+
+                // 関連商品（同じジャンル優先）のレコメンド表示
+                renderRecommendItems(mapData, itemId, targetItem.genre_id);
+
+            } else {
+                // --- 商品が見つからない場合（パージ/エラーフォールバック） ---
+                const searchKeyword = kwParam || "インテリア";
+                document.getElementById("copy-target-word").value = searchKeyword;
+                
+                // コピーボタンの設定
+                const copyBtn = document.getElementById("btn-copy-word");
+                copyBtn.addEventListener("click", () => {
+                    navigator.clipboard.writeText(searchKeyword).then(() => {
+                        copyBtn.innerText = "✓ コピーしました！";
+                        copyBtn.style.background = "rgba(16, 185, 129, 0.15)";
+                        copyBtn.style.color = "#34d399";
+                        copyBtn.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                        setTimeout(() => {
+                            copyBtn.innerText = "📋コピーする";
+                            copyBtn.style.background = "rgba(59, 130, 246, 0.15)";
+                            copyBtn.style.color = "#60a5fa";
+                            copyBtn.style.borderColor = "rgba(59, 130, 246, 0.3)";
+                        }, 2000);
+                    }).catch(err => {
+                        console.error("コピー失敗:", err);
+                    });
+                });
+
+                // UTMマージ済みのプロフィールURLを生成
+                const finalFallbackUrl = mergeUtmParameters(DEFAULT_PROFILE_URL);
+                document.getElementById("fallback-cta").href = finalFallbackUrl;
+
+                fallbackCard.style.display = "block";
+                document.title = "掲載終了のお知らせ - RoomCurator";
+
+                // フォールバック時も、他のおすすめ（新着）をレコメンド表示
+                renderRecommendItems(mapData, "", "");
+            }
+
+            // 関連商品のレンダリング処理
+            function renderRecommendItems(data, currentId, genreId) {
+                if (!data || !data.items) return;
+                
+                const container = document.getElementById("recommend-grid-container");
+                container.innerHTML = "";
+
+                const allItems = [];
+                for (const [id, item] of Object.entries(data.items)) {
+                    if (id === currentId) continue; // 現在表示中の商品は除外
+                    allItems.push({ id, ...item });
+                }
+
+                if (allItems.length === 0) return;
+
+                // レコメンド優先度ソート（ジャンルが一致するものを優先し、日付が新しい順）
+                allItems.sort((a, b) => {
+                    const aGenreMatch = (genreId && a.genre_id === genreId) ? 1 : 0;
+                    const bGenreMatch = (genreId && b.genre_id === genreId) ? 1 : 0;
+                    if (aGenreMatch !== bGenreMatch) {
+                        return bGenreMatch - aGenreMatch;
+                    }
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+
+                // 最大3件抽出
+                const recommends = allItems.slice(0, 3);
+                
+                recommends.forEach(item => {
+                    const card = document.createElement("a");
+                    card.className = "recommend-card";
+                    // 他の個別ページへ遷移する際も、現在のUTMパラメータを自動で引き継ぐ
+                    let itemLink = `./index.html?id=${item.id}`;
+                    if (item.search_keyword) itemLink += `&kw=${encodeURIComponent(item.search_keyword)}`;
+                    if (utmSource) itemLink += `&utm_source=${utmSource}`;
+                    if (utmMedium) itemLink += `&utm_medium=${utmMedium}`;
+                    if (utmCampaign) itemLink += `&utm_campaign=${utmCampaign}`;
+                    if (utmContent) itemLink += `&utm_content=${utmContent}`;
+                    
+                    card.href = itemLink;
+
+                    card.innerHTML = `
+                        <div class="recommend-img-container">
+                            <img src="${item.image_url}" alt="${item.title}" class="recommend-img" loading="lazy">
+                        </div>
+                        <div class="recommend-name">${item.title}</div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                recommendArea.style.display = "block";
+            }
+        });
+    </script>
+
+</body>
+</html>
